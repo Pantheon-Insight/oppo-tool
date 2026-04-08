@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply selection:bg-blue-600 selection:text-white;
+}
+
+html {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-slate-900 text-slate-100 font-sans;
+}
+
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded hover:bg-slate-500;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Custom table styles */
+table {
+  @apply w-full;
+}
+
+thead {
+  @apply bg-slate-800;
+}
+
+tbody tr {
+  @apply border-b border-slate-700;
+}
+
+tbody tr:hover {
+  @apply bg-slate-750;
+}
+
+/* Input focus styles */
+input:focus,
+select:focus,
+textarea:focus {
+  @apply outline-none ring-1 ring-blue-500 border-blue-500;
+}
+
+/* Checkbox styles */
+input[type="checkbox"] {
+  @apply cursor-pointer;
+}
+
+/* Button styles */
+button {
+  @apply transition-colors;
+}
+
+button:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+/* Utility for semi-transparent backgrounds */
+.bg-slate-750 {
+  @apply bg-slate-800 bg-opacity-50;
+}

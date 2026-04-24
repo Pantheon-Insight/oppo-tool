@@ -1,0 +1,80 @@
+name: Weekly version tag
+
+# Tags main with `vYYYY.MM.DD` every Monday at 00:00 UTC.
+# Skips if no commits since the last tag (no empty tags on quiet weeks).
+# Also supports manual dispatch for ad-hoc tagging.
+#
+# Pairs with RELEASE_NOTES.md for changelog, tags for rollback anchors.
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Every Monday 00:00 UTC
+  workflow_dispatch:      # Manual trigger button in Actions UI
+
+permissions:
+  contents: write  # required to push the tag
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for tag lookup)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute tag name + check for new commits
+        id: plan
+        run: |
+          set -euo pipefail
+          TAG="v$(date -u +%Y.%m.%d)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # If the tag already exists (e.g. manual re-run same day), skip.
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            echo "Tag $TAG already exists — skipping."
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Find the most-recent existing tag (any `v*` pattern). If none, always tag.
+          LAST_TAG=$(git tag --list 'v*' --sort=-creatordate | head -n 1 || true)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No prior tags — will create $TAG."
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Skip if HEAD is identical to the last tag's commit (no new commits).
+          LAST_SHA=$(git rev-list -n 1 "$LAST_TAG")
+          HEAD_SHA=$(git rev-parse HEAD)
+          if [ "$LAST_SHA" = "$HEAD_SHA" ]; then
+            echo "No new commits since $LAST_TAG — skipping tag."
+            echo "should_tag=false" >> "$GITHUB_OUTPUT"
+          else
+            COMMITS_SINCE=$(git rev-list --count "$LAST_TAG..HEAD")
+            echo "$COMMITS_SINCE commits since $LAST_TAG — will create $TAG."
+            echo "should_tag=true" >> "$GITHUB_OUTPUT"
+            echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+            echo "commits_since=$COMMITS_SINCE" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create + push tag
+        if: steps.plan.outputs.should_tag == 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.plan.outputs.tag }}"
+          LAST_TAG="${{ steps.plan.outputs.last_tag }}"
+          COMMITS_SINCE="${{ steps.plan.outputs.commits_since }}"
+
+          MSG="Weekly tag $TAG"
+          if [ -n "$LAST_TAG" ]; then
+            MSG="$MSG ($COMMITS_SINCE commits since $LAST_TAG)"
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$MSG"
+          git push origin "$TAG"
+          echo "Pushed tag $TAG"
